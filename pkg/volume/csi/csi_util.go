@@ -29,7 +29,9 @@ import (
 	api "k8s.io/api/core/v1"
 	storage "k8s.io/api/storage/v1"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
+	volumehelpers "k8s.io/component-helpers/storage/volume"
 	"k8s.io/klog/v2"
 	"k8s.io/kubernetes/pkg/volume"
 	utilstrings "k8s.io/utils/strings"
@@ -213,4 +215,33 @@ func getPodInfoAttrs(pod *api.Pod, volumeMode storage.VolumeLifecycleMode) map[s
 		"csi.storage.k8s.io/ephemeral":           strconv.FormatBool(volumeMode == storage.VolumeLifecycleEphemeral),
 	}
 	return attrs
+}
+
+func applyVAFencedAnnotation(ctx context.Context, c kubernetes.Interface, va *storage.VolumeAttachment, fenced bool) error {
+	var annotation *string
+	if _, ok := va.Annotations[volumehelpers.FenceVolumeAnnotation]; ok {
+		if fenced {
+			return nil
+		}
+	}
+	if fenced {
+		annotation = new(string)
+	}
+	patch := map[string]any{
+		"metadata": map[string]any{
+			"annotations": map[string]any{
+				volumehelpers.FenceVolumeAnnotation: annotation,
+			},
+		},
+	}
+	patchBytes, _ := json.Marshal(patch)
+	if _, err := c.StorageV1().VolumeAttachments().Patch(
+		ctx,
+		va.Name,
+		types.MergePatchType,
+		patchBytes,
+		meta.PatchOptions{}); err != nil {
+		return errors.New(log("failed to apply annotation to VolumeAttachment: %w", err))
+	}
+	return nil
 }

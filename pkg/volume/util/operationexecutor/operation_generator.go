@@ -386,6 +386,7 @@ func (og *operationGenerator) GenerateDetachVolumeFunc(
 		if err != nil {
 			return volumetypes.GeneratedOperations{}, volumeToDetach.GenerateErrorDetailed("DetachVolume.GetVolumeName failed", err)
 		}
+
 	} else {
 		// Get attacher plugin and the volumeName by splitting the volume unique name in case
 		// there's no VolumeSpec: this happens only on attach/detach controller crash recovery
@@ -402,6 +403,11 @@ func (og *operationGenerator) GenerateDetachVolumeFunc(
 
 	}
 
+	fenceMarker, err := og.volumePluginMgr.FindFenceablePluginBySpec(volumeToDetach.VolumeSpec)
+	if err != nil {
+		return volumetypes.GeneratedOperations{}, volumeToDetach.GenerateErrorDetailed("DetachVolume.FindFenceablePluginByName failed", err)
+	}
+
 	if pluginName == "" {
 		pluginName = attachableVolumePlugin.GetPluginName()
 	}
@@ -416,6 +422,10 @@ func (og *operationGenerator) GenerateDetachVolumeFunc(
 		if verifySafeToDetach {
 			err = og.verifyVolumeIsSafeToDetach(volumeToDetach)
 		}
+		if err != nil && fenceMarker != nil && util.IsFencingAllowed(volumeToDetach.VolumeSpec) {
+			err = fenceMarker.MarkFencedOnDetach(volumeToDetach.VolumeSpec, volumeToDetach.NodeName, true)
+		}
+
 		if err == nil {
 			err = volumeDetacher.Detach(volumeName, volumeToDetach.NodeName)
 		}

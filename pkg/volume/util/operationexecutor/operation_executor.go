@@ -341,6 +341,9 @@ type VolumeToAttach struct {
 	// attached to.
 	NodeName types.NodeName
 
+	// Fenceable indicates whether this volume is fenceable
+	Fenceable bool
+
 	// scheduledPods is a map containing the set of pods that reference this
 	// volume and are scheduled to the underlying node. The key in the map is
 	// the name of the pod and the value is a pod object containing more

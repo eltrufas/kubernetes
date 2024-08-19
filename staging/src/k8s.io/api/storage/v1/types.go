@@ -422,6 +422,9 @@ type CSIDriverSpec struct {
 	// +featureGate=SELinuxMountReadWriteOncePod
 	// +optional
 	SELinuxMount *bool `json:"seLinuxMount,omitempty" protobuf:"varint,8,opt,name=seLinuxMount"`
+
+	// +optional
+	AllowsFencing *bool `protobuf:"varint,9,opt,name=supportsFencing"`
 }
 
 // FSGroupPolicy specifies if a CSI Driver supports modifying

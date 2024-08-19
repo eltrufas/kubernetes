@@ -212,6 +212,9 @@ message CSIDriverSpec {
   // +featureGate=SELinuxMountReadWriteOncePod
   // +optional
   optional bool seLinuxMount = 8;
+
+  // +optional
+  optional bool supportsFencing = 9;
 }
 
 // CSINode holds information about all CSI drivers installed on a node.

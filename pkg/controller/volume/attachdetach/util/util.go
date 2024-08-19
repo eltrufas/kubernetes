@@ -90,6 +90,11 @@ func CreateVolumeSpec(logger klog.Logger, podVolume v1.Volume, pod *v1.Pod, node
 				err)
 		}
 
+		// When using the CSI plugin this will result in querying the
+		// CSIDriver. This is not expensive since it will use the
+		// caching lister within the plugin in most cases.
+		volumeSpec.Fenceable = util.IsFenceableVolume(volumeSpec, vpm)
+
 		logger.V(10).Info("Extracted volumeSpec from bound PV and PVC", "PVC", klog.KRef(pod.Namespace, claimName), "pvcUID", pvcUID, "PV", klog.KRef("", pvName), "volumeSpecName", volumeSpec.Name())
 
 		return volumeSpec, nil

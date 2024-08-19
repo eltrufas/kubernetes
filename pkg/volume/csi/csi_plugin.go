@@ -747,6 +747,47 @@ func (p *csiPlugin) ConstructBlockVolumeSpec(podUID types.UID, specVolName, mapP
 	return volume.NewSpecFromPersistentVolume(pv, false), nil
 }
 
+func (p *csiPlugin) CanFence(spec *volume.Spec) (bool, error) {
+	pvSrc, err := getCSISourceFromSpec(spec)
+	if err != nil {
+		return false, err
+	}
+
+	driverName := pvSrc.Driver
+	driver, err := p.getCSIDriver(driverName)
+	if err != nil {
+		return false, errors.New(log("plugin.CanFence failed to get CSIDriver: %v", err))
+	}
+
+	supportsFencing := driver.Spec.AllowsFencing != nil && *driver.Spec.AllowsFencing
+	return supportsFencing, nil
+}
+
+func (p *csiPlugin) MarkFencedOnDetach(spec *volume.Spec, nodeName types.NodeName, fenced bool) error {
+	ctx, cancel := createCSIOperationContext(spec, csiTimeout)
+	defer cancel()
+	pvSrc, err := getPVSourceFromSpec(spec)
+	if err != nil {
+		return errors.New(log("plugin.MarkFencedOnDetach failed to get CSIPersistentVolmeSource: %v", err))
+	}
+	node := string(nodeName)
+	attachID := getAttachmentName(pvSrc.VolumeHandle, pvSrc.Driver, node)
+
+	attachment, err := p.volumeAttachmentLister.Get(attachID)
+	if apierrors.IsNotFound(err) {
+		// Volume already detached, nothing to do.
+		return nil
+	} else if err != nil {
+		return errors.New(log("plugin.MarkFencedOnDetach failed to get volume attachment from lister: %v", err))
+	}
+
+	k8s := p.host.GetKubeClient()
+	if err := applyVAFencedAnnotation(ctx, k8s, attachment, fenced); err != nil {
+		return errors.New(log("plugin.MarkFencedOnDetach failed to set fence annotation on volume attachment: %v", err))
+	}
+	return nil
+}
+
 // skipAttach looks up CSIDriver object associated with driver name
 // to determine if driver requires attachment volume operation
 func (p *csiPlugin) skipAttach(driver string) (bool, error) {

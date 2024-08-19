@@ -225,6 +225,15 @@ type AttachableVolumePlugin interface {
 	CanAttach(spec *Spec) (bool, error)
 }
 
+type FenceableVolumePlugin interface {
+	VolumePlugin
+	// CanForceDetach tests if the provided volume spec can be marked as force detachable
+	CanFence(spec *Spec) (bool, error)
+	// MarkFencedOnDetach signals to the plugin that the volume should be
+	// fenced when it is detached.
+	MarkFencedOnDetach(spec *Spec, nodeName types.NodeName, fenced bool) error
+}
+
 // DeviceMountableVolumePlugin is an extended interface of VolumePlugin and is used
 // for volumes that requires mount device to a node before binding to volume to pod.
 type DeviceMountableVolumePlugin interface {
@@ -429,6 +438,7 @@ type Spec struct {
 	ReadOnly                        bool
 	InlineVolumeSpecForCSIMigration bool
 	Migrated                        bool
+	Fenceable                       bool
 }
 
 // Name returns the name of either Volume or PersistentVolume, one of which must not be nil.
@@ -821,6 +831,25 @@ func (pm *VolumePluginMgr) FindAttachablePluginByName(name string) (AttachableVo
 	}
 	if attachablePlugin, ok := volumePlugin.(AttachableVolumePlugin); ok {
 		return attachablePlugin, nil
+	}
+	return nil, nil
+}
+
+// FindForceDetachablePluginBySpec fetches a persistent volume plugin by spec.
+// Unlike the other "FindPlugin" methods, this does not return error if no
+// plugin is found.  All volumes require a mounter and unmounter, but not
+// every volume will have an attacher/detacher.
+func (pm *VolumePluginMgr) FindFenceablePluginBySpec(spec *Spec) (FenceableVolumePlugin, error) {
+	volumePlugin, err := pm.FindPluginBySpec(spec)
+	if err != nil {
+		return nil, err
+	}
+	if plugin, ok := volumePlugin.(FenceableVolumePlugin); ok {
+		if canForceDetach, err := plugin.CanFence(spec); err != nil {
+			return nil, err
+		} else if canForceDetach {
+			return plugin, nil
+		}
 	}
 	return nil, nil
 }

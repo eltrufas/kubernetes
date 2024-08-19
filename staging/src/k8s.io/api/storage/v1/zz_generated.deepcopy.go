@@ -132,6 +132,11 @@ func (in *CSIDriverSpec) DeepCopyInto(out *CSIDriverSpec) {
 		*out = new(bool)
 		**out = **in
 	}
+	if in.AllowsFencing != nil {
+		in, out := &in.AllowsFencing, &out.AllowsFencing
+		*out = new(bool)
+		**out = **in
+	}
 	return
 }
 

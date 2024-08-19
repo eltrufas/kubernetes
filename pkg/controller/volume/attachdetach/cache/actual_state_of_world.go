@@ -139,6 +139,10 @@ type ActualStateOfWorld interface {
 
 	// GetNodesToUpdateStatusFor returns the map of nodeNames to nodeToUpdateStatusFor
 	GetNodesToUpdateStatusFor() map[types.NodeName]nodeToUpdateStatusFor
+
+	// IsVolumeInUse determines whether the volume is reported in use by the volume according to the node's
+	// volumesInUse field
+	IsVolumeInUse(nodeName types.NodeName, volName v1.UniqueVolumeName) bool
 }
 
 // AttachedVolume represents a volume that is attached to a node.
@@ -707,6 +711,10 @@ func (asw *actualStateOfWorld) GetVolumesToReportAttachedForNode(logger klog.Log
 
 func (asw *actualStateOfWorld) GetNodesToUpdateStatusFor() map[types.NodeName]nodeToUpdateStatusFor {
 	return asw.nodesToUpdateStatusFor
+}
+
+func (asw *actualStateOfWorld) IsVolumeInUse(nodeName types.NodeName, volName v1.UniqueVolumeName) bool {
+	return asw.inUseVolumes[nodeName].Has(volName)
 }
 
 func (asw *actualStateOfWorld) getAttachedVolumeFromUpdateObject(volumesToReportAsAttached map[v1.UniqueVolumeName]v1.UniqueVolumeName) []v1.AttachedVolume {

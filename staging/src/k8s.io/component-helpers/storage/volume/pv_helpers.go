@@ -80,6 +80,10 @@ const (
 
 	// PVDeletionInTreeProtectionFinalizer is the finalizer added to protect PV deletion for in-tree volumes.
 	PVDeletionInTreeProtectionFinalizer = "kubernetes.io/pv-controller"
+
+	//ForceDetachAnnotation is set on volume attachments to signal that
+	//volume should be fenced on detach.
+	FenceVolumeAnnotation = "external-provisioner.volume.kubernetes.io/fence-volume"
 )
 
 // IsDelayBindingProvisioning checks if claim provisioning with selected-node annotation

@@ -681,6 +681,13 @@ func IsMultiAttachAllowed(volumeSpec *volume.Spec) bool {
 	return true
 }
 
+func IsFencingAllowed(spec *volume.Spec) bool {
+	if spec == nil {
+		return true
+	}
+	return spec.Fenceable
+}
+
 // IsAttachableVolume checks if the given volumeSpec is an attachable volume or not
 func IsAttachableVolume(volumeSpec *volume.Spec, volumePluginMgr *volume.VolumePluginMgr) bool {
 	attachableVolumePlugin, _ := volumePluginMgr.FindAttachablePluginBySpec(volumeSpec)
@@ -691,6 +698,14 @@ func IsAttachableVolume(volumeSpec *volume.Spec, volumePluginMgr *volume.VolumeP
 		}
 	}
 
+	return false
+}
+
+func IsFenceableVolume(volumeSpec *volume.Spec, volumePluginMgr *volume.VolumePluginMgr) bool {
+	fenceableVolumePlugin, _ := volumePluginMgr.FindFenceablePluginBySpec(volumeSpec)
+	if fenceableVolumePlugin != nil {
+		return true
+	}
 	return false
 }
 

@@ -224,7 +224,8 @@ func (rc *reconciler) reconcile(ctx context.Context) {
 			if maxWaitForUnmountDurationExpired && rc.disableForceDetachOnTimeout {
 				logger.V(5).Info("Drain timeout expired for volume but disableForceDetachOnTimeout was set", "node", klog.KRef("", string(attachedVolume.NodeName)), "volumeName", attachedVolume.VolumeName)
 			}
-			forceDetach := !isHealthy && forceDetatchTimeoutExpired
+			fenceable := util.IsFencingAllowed(attachedVolume.VolumeSpec)
+			forceDetach := !isHealthy && forceDetatchTimeoutExpired && !fenceable
 
 			hasOutOfServiceTaint, err := rc.hasOutOfServiceTaint(attachedVolume.NodeName)
 			if err != nil {
@@ -233,7 +234,7 @@ func (rc *reconciler) reconcile(ctx context.Context) {
 
 			// Check whether volume is still mounted. Skip detach if it is still mounted unless we have
 			// decided to force detach or the node has `node.kubernetes.io/out-of-service` taint.
-			if attachedVolume.MountedByNode && !forceDetach && !hasOutOfServiceTaint {
+			if attachedVolume.MountedByNode && !forceDetach && !hasOutOfServiceTaint && !fenceable {
 				logger.V(5).Info("Cannot detach volume because it is still mounted", "node", klog.KRef("", string(attachedVolume.NodeName)), "volumeName", attachedVolume.VolumeName)
 				continue
 			}
@@ -339,6 +340,11 @@ func (rc *reconciler) attachDesiredVolumes(logger klog.Logger) {
 			// Volume/Node exists, touch it to reset detachRequestedTime
 			logger.V(10).Info("Volume attached--touching", "volume", volumeToAttach)
 			rc.actualStateOfWorld.ResetDetachRequestTime(logger, volumeToAttach.VolumeName, volumeToAttach.NodeName)
+			continue
+		}
+
+		if util.IsFencingAllowed(volumeToAttach.VolumeSpec) && rc.actualStateOfWorld.IsVolumeInUse(volumeToAttach.NodeName, volumeToAttach.VolumeName) {
+			logger.V(4).Info("Volume is currently fenced from node. Can't attach to node", "volume", volumeToAttach)
 			continue
 		}
 

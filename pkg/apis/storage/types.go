@@ -412,6 +412,9 @@ type CSIDriverSpec struct {
 	// +featureGate=SELinuxMountReadWriteOncePod
 	// +optional
 	SELinuxMount *bool
+
+	// +optional
+	AllowsFencing *bool
 }
 
 // FSGroupPolicy specifies if a CSI Driver supports modifying

@@ -225,6 +225,7 @@ require (
 )
 
 replace (
+	github.com/container-storage-interface/spec => /home/rcastillo/spec
 	k8s.io/api => ./staging/src/k8s.io/api
 	k8s.io/apiextensions-apiserver => ./staging/src/k8s.io/apiextensions-apiserver
 	k8s.io/apimachinery => ./staging/src/k8s.io/apimachinery

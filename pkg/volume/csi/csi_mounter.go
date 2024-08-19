@@ -430,7 +430,13 @@ func (c *csiMountMgr) TearDownAt(dir string) error {
 	ctx, cancel := createCSIOperationContext(c.spec, csiTimeout)
 	defer cancel()
 
-	if err := csi.NodeUnpublishVolume(ctx, volID, dir); err != nil {
+	forceUnpublish, err := c.plugin.shouldForceNodeOperation(
+		ctx, csi, volID, string(c.driverName), string(c.plugin.host.GetNodeName()))
+	if err != nil {
+		klog.V(4).Infof(log("Unmounter.TearDownAt failed to determine whether to force operation: %v", err))
+	}
+
+	if err := csi.NodeUnpublishVolume(ctx, volID, dir, forceUnpublish); err != nil {
 		return errors.New(log("Unmounter.TearDownAt failed: %v", err))
 	}
 

@@ -636,10 +636,17 @@ func (c *csiAttacher) UnmountDevice(deviceMountPath string) error {
 		return nil
 	}
 
+	forceUnstage, err := c.plugin.shouldForceNodeOperation(
+		ctx, csi, volID, driverName, string(c.plugin.host.GetNodeName()))
+	if err != nil {
+		return errors.New(log("attacher.UnmountDevice failed to determine whether to force operation: %v", err))
+	}
+
 	// Start UnmountDevice
 	err = csi.NodeUnstageVolume(ctx,
 		volID,
-		deviceMountPath)
+		deviceMountPath,
+		forceUnstage)
 
 	if err != nil {
 		return errors.New(log("attacher.UnmountDevice failed: %v", err))

@@ -69,6 +69,7 @@ type csiClient interface {
 		ctx context.Context,
 		volID string,
 		targetPath string,
+		force bool,
 	) error
 
 	// The caller is responsible for checking whether the driver supports
@@ -91,12 +92,13 @@ type csiClient interface {
 		volID string,
 		targetPath string,
 	) (*volume.Metrics, error)
-	NodeUnstageVolume(ctx context.Context, volID, stagingTargetPath string) error
+	NodeUnstageVolume(ctx context.Context, volID, stagingTargetPath string, force bool) error
 	NodeSupportsStageUnstage(ctx context.Context) (bool, error)
 	NodeSupportsNodeExpand(ctx context.Context) (bool, error)
 	NodeSupportsVolumeStats(ctx context.Context) (bool, error)
 	NodeSupportsSingleNodeMultiWriterAccessMode(ctx context.Context) (bool, error)
 	NodeSupportsVolumeMountGroup(ctx context.Context) (bool, error)
+	NodeSupportsForceUnpublish(ctx context.Context) (bool, error)
 }
 
 // Strongly typed address
@@ -356,7 +358,7 @@ func (c *csiDriverClient) NodeExpandVolume(ctx context.Context, opts csiResizeOp
 	return *updatedQuantity, nil
 }
 
-func (c *csiDriverClient) NodeUnpublishVolume(ctx context.Context, volID string, targetPath string) error {
+func (c *csiDriverClient) NodeUnpublishVolume(ctx context.Context, volID string, targetPath string, force bool) error {
 	klog.V(4).InfoS(log("calling NodeUnpublishVolume rpc"), "volID", volID, "targetPath", targetPath)
 	if volID == "" {
 		return errors.New("missing volume id")
@@ -377,6 +379,7 @@ func (c *csiDriverClient) NodeUnpublishVolume(ctx context.Context, volID string,
 	req := &csipbv1.NodeUnpublishVolumeRequest{
 		VolumeId:   volID,
 		TargetPath: targetPath,
+		Force:      force,
 	}
 
 	_, err = nodeClient.NodeUnpublishVolume(ctx, req)
@@ -453,7 +456,7 @@ func (c *csiDriverClient) NodeStageVolume(ctx context.Context,
 	return err
 }
 
-func (c *csiDriverClient) NodeUnstageVolume(ctx context.Context, volID, stagingTargetPath string) error {
+func (c *csiDriverClient) NodeUnstageVolume(ctx context.Context, volID, stagingTargetPath string, force bool) error {
 	klog.V(4).InfoS(log("calling NodeUnstageVolume rpc"), "volID", volID, "stagingTargetPath", stagingTargetPath)
 	if volID == "" {
 		return errors.New("missing volume id")
@@ -474,6 +477,7 @@ func (c *csiDriverClient) NodeUnstageVolume(ctx context.Context, volID, stagingT
 	req := &csipbv1.NodeUnstageVolumeRequest{
 		VolumeId:          volID,
 		StagingTargetPath: stagingTargetPath,
+		Force:             force,
 	}
 	_, err = nodeClient.NodeUnstageVolume(ctx, req)
 	return err
@@ -485,6 +489,10 @@ func (c *csiDriverClient) NodeSupportsNodeExpand(ctx context.Context) (bool, err
 
 func (c *csiDriverClient) NodeSupportsStageUnstage(ctx context.Context) (bool, error) {
 	return c.nodeSupportsCapability(ctx, csipbv1.NodeServiceCapability_RPC_STAGE_UNSTAGE_VOLUME)
+}
+
+func (c *csiDriverClient) NodeSupportsForceUnpublish(ctx context.Context) (bool, error) {
+	return c.nodeSupportsCapability(ctx, csipbv1.NodeServiceCapability_RPC_FORCE_UNPUBLISH)
 }
 
 func (c *csiDriverClient) getNodeV1AccessModeMapper(ctx context.Context) (nodeV1AccessModeMapper, error) {

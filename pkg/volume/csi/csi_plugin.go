@@ -891,3 +891,23 @@ func waitForAPIServerForever(client clientset.Interface, nodeName types.NodeName
 
 	return nil
 }
+
+func (p *csiPlugin) shouldForceNodeOperation(ctx context.Context, csi csiClient, volID, driverName, nodeName string) (bool, error) {
+	forceUnpublishSet, err := csi.NodeSupportsForceUnpublish(ctx)
+	if err != nil {
+		return false, errors.New(log("failed to check whether FORCE_UNPUBLISH set: %v", err))
+	}
+	if !forceUnpublishSet {
+		return false, nil
+	}
+	attachID := getAttachmentName(volID, driverName, nodeName)
+	// If a corresponding VolumeAttachment does not exist, the ADC must
+	// have force detached the node.
+	// Therefore, force the Node operations as well to perform cleanup.
+	if _, err := p.volumeAttachmentLister.Get(attachID); apierrors.IsNotFound(err) {
+		return true, nil
+	} else if err != nil {
+		return false, errors.New(log("attacher.UnmountDevice failed to get VolumeAttachment from lister: %v", err))
+	}
+	return false, nil
+}

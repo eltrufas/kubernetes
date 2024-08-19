@@ -400,12 +400,17 @@ var _ volume.CustomBlockVolumeUnmapper = &csiBlockMapper{}
 
 // unpublishVolumeForBlock unpublishes a block volume from publishPath
 func (m *csiBlockMapper) unpublishVolumeForBlock(ctx context.Context, csi csiClient, publishPath string) error {
+	forceUnpublish, err := m.plugin.shouldForceNodeOperation(
+		ctx, csi, m.volumeID, string(m.driverName), string(m.plugin.host.GetNodeName()))
+	if err != nil {
+		klog.Infof(log("blockMapper.unpublishVolumeForBlock failed to determine whether to force operation"))
+	}
 	// Request to unpublish a block volume from publishPath.
 	// Expectation for driver is to remove block volume from the publishPath, by unmounting bind-mounted device file
 	// or deleting device file.
 	// Driver is responsible for deleting publishPath itself.
 	// If driver doesn't implement NodeUnstageVolume, detaching the block volume from the node may be done, here.
-	if err := csi.NodeUnpublishVolume(ctx, m.volumeID, publishPath); err != nil {
+	if err := csi.NodeUnpublishVolume(ctx, m.volumeID, publishPath, forceUnpublish); err != nil {
 		return errors.New(log("blockMapper.unpublishVolumeForBlock failed: %v", err))
 	}
 	klog.V(4).Infof(log("blockMapper.unpublishVolumeForBlock NodeUnpublished successfully [%s]", publishPath))
@@ -425,10 +430,16 @@ func (m *csiBlockMapper) unstageVolumeForBlock(ctx context.Context, csi csiClien
 		return nil
 	}
 
+	forceUnstage, err := m.plugin.shouldForceNodeOperation(
+		ctx, csi, m.volumeID, string(m.driverName), string(m.plugin.host.GetNodeName()))
+	if err != nil {
+		klog.Infof(log("blockMapper.unstageVolumeForBlock failed to determine whether to force operation"))
+	}
+
 	// Request to unstage a block volume from stagingPath.
 	// Expected implementation for driver is removing driver specific resource in stagingPath and
 	// detaching the block volume from the node.
-	if err := csi.NodeUnstageVolume(ctx, m.volumeID, stagingPath); err != nil {
+	if err := csi.NodeUnstageVolume(ctx, m.volumeID, stagingPath, forceUnstage); err != nil {
 		return errors.New(log("blockMapper.unstageVolumeForBlock failed: %v", err))
 	}
 	klog.V(4).Infof(log("blockMapper.unstageVolumeForBlock NodeUnstageVolume successfully [%s]", stagingPath))
